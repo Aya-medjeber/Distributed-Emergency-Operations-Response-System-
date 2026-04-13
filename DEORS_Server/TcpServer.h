@@ -19,6 +19,10 @@ public:
     void Shutdown();
 
 private:
+    bool SendAll(const char* data, int totalBytes);
+    bool ReceiveAll(char* buffer, int totalBytes);
+
+private:
     SOCKET m_listenSocket;
     SOCKET m_clientSocket;
     bool m_initialized;

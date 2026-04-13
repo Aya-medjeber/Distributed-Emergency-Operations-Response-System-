@@ -1,4 +1,6 @@
-﻿  main.cpp
+﻿  TcpServer.cpp
+  main.cpp
+  Generating Code...
   DEORS_Server.vcxproj -> C:\Users\Aya Ben Medjeber\Desktop\DEORS\x64\Debug\DEORS_Server.exe
   'pwsh.exe' is not recognized as an internal or external command,
   operable program or batch file.

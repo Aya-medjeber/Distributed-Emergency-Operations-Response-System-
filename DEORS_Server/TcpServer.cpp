@@ -85,20 +85,59 @@ bool TcpServer::AcceptClient()
     return true;
 }
 
+bool TcpServer::SendAll(const char* data, int totalBytes)
+{
+    int sent = 0;
+    while (sent < totalBytes)
+    {
+        int result = send(m_clientSocket, data + sent, totalBytes - sent, 0);
+        if (result == SOCKET_ERROR || result <= 0)
+            return false;
+
+        sent += result;
+    }
+    return true;
+}
+
+bool TcpServer::ReceiveAll(char* buffer, int totalBytes)
+{
+    int received = 0;
+    while (received < totalBytes)
+    {
+        int result = recv(m_clientSocket, buffer + received, totalBytes - received, 0);
+        if (result == SOCKET_ERROR || result <= 0)
+            return false;
+
+        received += result;
+    }
+    return true;
+}
+
 bool TcpServer::ReceiveBytes(std::vector<char>& outData)
 {
     if (m_clientSocket == INVALID_SOCKET)
         return false;
 
-    char buffer[2048]{};
-    int bytesReceived = recv(m_clientSocket, buffer, sizeof(buffer), 0);
-    if (bytesReceived <= 0)
+    int dataSize = 0;
+    if (!ReceiveAll(reinterpret_cast<char*>(&dataSize), sizeof(int)))
     {
-        std::cout << "[Server] Receive failed or client disconnected.\n";
+        std::cout << "[Server] Failed to receive packet size.\n";
         return false;
     }
 
-    outData.assign(buffer, buffer + bytesReceived);
+    if (dataSize <= 0)
+    {
+        std::cout << "[Server] Invalid packet size received.\n";
+        return false;
+    }
+
+    outData.resize(dataSize);
+    if (!ReceiveAll(outData.data(), dataSize))
+    {
+        std::cout << "[Server] Failed to receive full packet data.\n";
+        return false;
+    }
+
     return true;
 }
 
@@ -107,10 +146,17 @@ bool TcpServer::SendBytes(const std::vector<char>& data)
     if (m_clientSocket == INVALID_SOCKET)
         return false;
 
-    int result = send(m_clientSocket, data.data(), static_cast<int>(data.size()), 0);
-    if (result == SOCKET_ERROR)
+    int dataSize = static_cast<int>(data.size());
+
+    if (!SendAll(reinterpret_cast<const char*>(&dataSize), sizeof(int)))
     {
-        std::cout << "[Server] Send failed.\n";
+        std::cout << "[Server] Failed to send packet size.\n";
+        return false;
+    }
+
+    if (!SendAll(data.data(), dataSize))
+    {
+        std::cout << "[Server] Failed to send packet data.\n";
         return false;
     }
 
