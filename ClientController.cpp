@@ -7,6 +7,30 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <fstream>
+
+static std::string GetCommandTextFromChoice(int choice)
+{
+    switch (choice)
+    {
+    case 2: return "DECLARE_ALERT";
+    case 3: return "ESCALATE_ALERT";
+    case 4: return "RESOLVE_ALERT";
+    case 5: return "RESET_SYSTEM";
+    case 6: return "REQUEST_SITUATION_REPORT";
+    default: return "";
+    }
+}
+
+static bool SaveBinaryFile(const std::string& path, const std::vector<char>& data)
+{
+    std::ofstream file(path, std::ios::binary);
+    if (!file.is_open())
+        return false;
+
+    file.write(data.data(), static_cast<std::streamsize>(data.size()));
+    return true;
+}
 
 bool ClientController::IsValidMenuOption(int choice) const
 {
@@ -121,7 +145,57 @@ void ClientController::Run()
                 continue;
             }
 
-            std::cout << "[Client] Command flow will be implemented in next phase.\n";
+            std::string commandText = GetCommandTextFromChoice(choice);
+
+            Packet commandPacket(
+                CommandType::STATE_UPDATE,
+                1,
+                Packet::StringToPayload(commandText)
+            );
+
+            if (!client.SendBytes(commandPacket.Serialize()))
+            {
+                std::cout << "[Client] Failed to send command packet.\n";
+                logger.Log("TX", commandText, commandPacket.payloadSize, "FAIL");
+                continue;
+            }
+
+            logger.Log("TX", commandText, commandPacket.payloadSize, "OK");
+
+            std::vector<char> rawResponse;
+            if (!client.ReceiveBytes(rawResponse))
+            {
+                std::cout << "[Client] Failed to receive command response.\n";
+                continue;
+            }
+
+            Packet responsePacket;
+            if (!Packet::Deserialize(rawResponse, responsePacket))
+            {
+                std::cout << "[Client] Failed to parse command response.\n";
+                logger.Log("RX", "COMMAND_RESPONSE", static_cast<int>(rawResponse.size()), "FAIL");
+                continue;
+            }
+
+            if (responsePacket.commandType == CommandType::REPORT_DATA)
+            {
+                if (SaveBinaryFile("received_situation_report.jpg", responsePacket.payload))
+                {
+                    std::cout << "[Client] Situation report saved as received_situation_report.jpg\n";
+                    logger.Log("RX", "REPORT_DATA", responsePacket.payloadSize, "OK");
+                }
+                else
+                {
+                    std::cout << "[Client] Failed to save received report.\n";
+                    logger.Log("RX", "REPORT_DATA", responsePacket.payloadSize, "FAIL");
+                }
+                continue;
+            }
+
+            std::string responseText = Packet::PayloadToString(responsePacket.payload);
+            std::cout << "[Client] Server Response: " << responseText << "\n";
+
+            logger.Log("RX", "COMMAND_RESPONSE", responsePacket.payloadSize, "OK");
         }
     }
 
