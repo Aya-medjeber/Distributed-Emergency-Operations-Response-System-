@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="DEORS_Client/DEORS_Client.vcxproj" Id="796758ce-1ba7-4d35-9248-926d553b923c" />
+  <Project Path="DEORS_Server/DEORS_Server.vcxproj" Id="d3156699-c7a7-4a81-af96-decfcd11a43b" />
+  <Project Path="DEORS_Shared/DEORS_Shared.vcxproj" Id="5b474e7d-d0af-43a4-b0ef-921c96f776f6" />
+</Solution>
