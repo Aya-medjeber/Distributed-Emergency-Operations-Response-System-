@@ -3,24 +3,12 @@
 #include "TcpClient.h"
 #include "Packet.h"
 #include "Logger.h"
+#include "ClientHelpers.h"
 #include <iostream>
 #include <limits>
 #include <string>
 #include <vector>
 #include <fstream>
-
-static std::string GetCommandTextFromChoice(int choice)
-{
-    switch (choice)
-    {
-    case 2: return "DECLARE_ALERT";
-    case 3: return "ESCALATE_ALERT";
-    case 4: return "RESOLVE_ALERT";
-    case 5: return "RESET_SYSTEM";
-    case 6: return "REQUEST_SITUATION_REPORT";
-    default: return "";
-    }
-}
 
 static bool SaveBinaryFile(const std::string& path, const std::vector<char>& data)
 {
@@ -32,9 +20,19 @@ static bool SaveBinaryFile(const std::string& path, const std::vector<char>& dat
     return true;
 }
 
+static std::string ExtractStateValue(const std::string& responseText)
+{
+    const std::string prefix = "STATE:";
+    if (responseText.rfind(prefix, 0) == 0)
+    {
+        return responseText.substr(prefix.length());
+    }
+    return "";
+}
+
 bool ClientController::IsValidMenuOption(int choice) const
 {
-    return choice >= 0 && choice <= 6;
+    return IsValidMenuOptionHelper(choice);
 }
 
 void ClientController::Run()
@@ -54,6 +52,9 @@ void ClientController::Run()
     int choice = -1;
     bool connected = false;
     bool loggedIn = false;
+    std::string currentState = "NOT_CONNECTED";
+
+    std::cout << "[Client] Current State: " << currentState << "\n";
 
     while (choice != 0)
     {
@@ -82,6 +83,9 @@ void ClientController::Run()
                 connected = client.Connect("127.0.0.1", 54000);
                 if (!connected)
                     continue;
+
+                currentState = "CONNECTED_NOT_AUTHENTICATED";
+                std::cout << "[Client] Current State: " << currentState << "\n";
             }
 
             std::string username;
@@ -130,6 +134,17 @@ void ClientController::Run()
             std::cout << "[Client] Server Response: " << responseText << "\n";
 
             loggedIn = (responseText == "LOGIN_SUCCESS");
+
+            if (loggedIn)
+            {
+                currentState = "NORMAL";
+            }
+            else
+            {
+                currentState = "CONNECTED_NOT_AUTHENTICATED";
+            }
+
+            std::cout << "[Client] Current State: " << currentState << "\n";
         }
         else if (choice >= 2 && choice <= 6)
         {
@@ -145,7 +160,7 @@ void ClientController::Run()
                 continue;
             }
 
-            std::string commandText = GetCommandTextFromChoice(choice);
+            std::string commandText = GetCommandTextFromChoiceHelper(choice);
 
             Packet commandPacket(
                 CommandType::STATE_UPDATE,
@@ -189,11 +204,21 @@ void ClientController::Run()
                     std::cout << "[Client] Failed to save received report.\n";
                     logger.Log("RX", "REPORT_DATA", responsePacket.payloadSize, "FAIL");
                 }
+
+                std::cout << "[Client] Current State: " << currentState << "\n";
                 continue;
             }
 
             std::string responseText = Packet::PayloadToString(responsePacket.payload);
             std::cout << "[Client] Server Response: " << responseText << "\n";
+
+            std::string extractedState = ExtractStateValue(responseText);
+            if (!extractedState.empty())
+            {
+                currentState = extractedState;
+            }
+
+            std::cout << "[Client] Current State: " << currentState << "\n";
 
             logger.Log("RX", "COMMAND_RESPONSE", responsePacket.payloadSize, "OK");
         }
