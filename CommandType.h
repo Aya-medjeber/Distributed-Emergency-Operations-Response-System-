@@ -1,0 +1,17 @@
+#pragma once
+
+enum class CommandType
+{
+    LOGIN_REQUEST = 1,
+    LOGIN_RESPONSE,
+
+    DECLARE_ALERT,
+    ESCALATE_ALERT,
+    RESOLVE_ALERT,
+    RESET_SYSTEM,
+    REQUEST_SITUATION_REPORT,
+
+    STATE_UPDATE,
+    ERROR_RESPONSE,
+    REPORT_DATA
+};
